@@ -18,9 +18,9 @@
 -- New hires
 -- ---------------------------------------------------------------------
 
-INSERT INTO main.gold_demo.gold_employee
+INSERT INTO jpmc_cib_demo.gold_demo.gold_employee
 WITH anchor AS (
-    SELECT coalesce(max(employee_id), 5100000) + 1 AS start_id FROM main.gold_demo.gold_employee
+    SELECT coalesce(max(employee_id), 5100000) + 1 AS start_id FROM jpmc_cib_demo.gold_demo.gold_employee
 ),
 ids AS (
     SELECT a.start_id + r.id AS employee_id
@@ -30,7 +30,7 @@ ids AS (
 assigned AS (
     SELECT
         employee_id,
-        1 + pmod(hash(employee_id, 'newdept'), (SELECT count(*) FROM main.gold_demo.gold_department)) AS department_number
+        1 + pmod(hash(employee_id, 'newdept'), (SELECT count(*) FROM jpmc_cib_demo.gold_demo.gold_department)) AS department_number
     FROM ids
 )
 SELECT
@@ -49,7 +49,7 @@ SELECT
                                                                        AS updated_at,
     pmod(a.employee_id, 32)                                AS employee_id_bucket
 FROM assigned a
-JOIN main.gold_demo.gold_department d
+JOIN jpmc_cib_demo.gold_demo.gold_department d
     ON a.department_number = d.department_number;
 
 -- ---------------------------------------------------------------------
@@ -60,11 +60,11 @@ JOIN main.gold_demo.gold_department d
 -- naive insert-only incremental gets wrong and a merge gets right.
 -- ---------------------------------------------------------------------
 
-MERGE INTO main.gold_demo.gold_employee AS t
+MERGE INTO jpmc_cib_demo.gold_demo.gold_employee AS t
 USING (
     WITH movers AS (
         SELECT employee_id
-        FROM main.gold_demo.gold_employee
+        FROM jpmc_cib_demo.gold_demo.gold_employee
         WHERE updated_at < TIMESTAMP '2026-08-14 00:00:00'
         ORDER BY pmod(hash(employee_id, 'move'), 1000000)
         LIMIT 200
@@ -76,9 +76,9 @@ USING (
         timestampadd(MINUTE, pmod(hash(m.employee_id, 'movets'), 720), TIMESTAMP '2026-08-14 00:00:00')
             AS new_updated_at
     FROM movers m
-    JOIN main.gold_demo.gold_department d
+    JOIN jpmc_cib_demo.gold_demo.gold_department d
         ON d.department_number =
-           1 + pmod(hash(m.employee_id, 'movedept'), (SELECT count(*) FROM main.gold_demo.gold_department))
+           1 + pmod(hash(m.employee_id, 'movedept'), (SELECT count(*) FROM jpmc_cib_demo.gold_demo.gold_department))
 ) AS s
 ON t.employee_id = s.employee_id
 WHEN MATCHED THEN UPDATE SET

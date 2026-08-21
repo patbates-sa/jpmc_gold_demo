@@ -22,7 +22,7 @@
 -- Runs in a Databricks notebook or the SQL editor. Unity Catalog assumed.
 -- =====================================================================
 
-CREATE SCHEMA IF NOT EXISTS main.gold_demo;
+CREATE SCHEMA IF NOT EXISTS jpmc_cib_demo.gold_demo;
 
 -- ---------------------------------------------------------------------
 -- Small side: gold_department
@@ -31,7 +31,7 @@ CREATE SCHEMA IF NOT EXISTS main.gold_demo;
 -- many-to-one and lets Adaptive Query Execution broadcast this side.
 -- ---------------------------------------------------------------------
 
-CREATE OR REPLACE TABLE main.gold_demo.gold_department (
+CREATE OR REPLACE TABLE jpmc_cib_demo.gold_demo.gold_department (
     department_number  INT     COMMENT 'Ingest-optimized partition key',
     department_name    STRING  COMMENT 'Join key for the Gold+ model. Unique here.',
     department_head    STRING,
@@ -42,7 +42,7 @@ USING DELTA
 PARTITIONED BY (department_number)
 COMMENT 'Synthetic Gold-layer department reference table. Small side of a many-to-one join.';
 
-INSERT INTO main.gold_demo.gold_department
+INSERT INTO jpmc_cib_demo.gold_demo.gold_department
 WITH names AS (
     SELECT
         posexplode(array(
@@ -84,7 +84,7 @@ FROM names;
 -- and it mirrors the source spec.
 -- ---------------------------------------------------------------------
 
-CREATE OR REPLACE TABLE main.gold_demo.gold_employee (
+CREATE OR REPLACE TABLE jpmc_cib_demo.gold_demo.gold_employee (
     employee_id         BIGINT    COMMENT 'Grain. Unique key for the incremental merge.',
     employee_name       STRING,
     department_number   INT       COMMENT 'Ingest-optimized partition key',
@@ -98,7 +98,7 @@ USING DELTA
 PARTITIONED BY (department_number, employee_id_bucket)
 COMMENT 'Synthetic Gold-layer employee table. Large side of a many-to-one join.';
 
-INSERT INTO main.gold_demo.gold_employee
+INSERT INTO jpmc_cib_demo.gold_demo.gold_employee
 WITH ids AS (
     SELECT 100000 + id AS employee_id
     FROM range(0, 5000000)
@@ -134,7 +134,7 @@ SELECT
     )                                                                  AS updated_at,
     pmod(a.employee_id, 32)                                AS employee_id_bucket
 FROM assigned a
-JOIN main.gold_demo.gold_department d
+JOIN jpmc_cib_demo.gold_demo.gold_department d
     ON a.department_number = d.department_number;
 
 -- ---------------------------------------------------------------------
@@ -142,5 +142,5 @@ JOIN main.gold_demo.gold_department d
 -- so collect them before timing anything or the first run misleads you.
 -- ---------------------------------------------------------------------
 
-ANALYZE TABLE main.gold_demo.gold_department COMPUTE STATISTICS FOR ALL COLUMNS;
-ANALYZE TABLE main.gold_demo.gold_employee  COMPUTE STATISTICS FOR ALL COLUMNS;
+ANALYZE TABLE jpmc_cib_demo.gold_demo.gold_department COMPUTE STATISTICS FOR ALL COLUMNS;
+ANALYZE TABLE jpmc_cib_demo.gold_demo.gold_employee  COMPUTE STATISTICS FOR ALL COLUMNS;

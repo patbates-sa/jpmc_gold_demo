@@ -7,30 +7,30 @@
 -- =====================================================================
 
 -- 1. Row counts. Expect 5,000,000 employees, 24 departments.
-SELECT 'gold_employee' AS table_name, count(*) AS rows FROM main.gold_demo.gold_employee
+SELECT 'gold_employee' AS table_name, count(*) AS rows FROM jpmc_cib_demo.gold_demo.gold_employee
 UNION ALL
-SELECT 'gold_department', count(*) FROM main.gold_demo.gold_department;
+SELECT 'gold_department', count(*) FROM jpmc_cib_demo.gold_demo.gold_department;
 
 -- 2. The join key must be unique on the small side, or the join is not
 --    many-to-one and the row count fans out. Expect zero rows.
 SELECT department_name, count(*) AS n
-FROM main.gold_demo.gold_department
+FROM jpmc_cib_demo.gold_demo.gold_department
 GROUP BY department_name
 HAVING count(*) > 1;
 
 -- 3. Referential integrity on the join key. Expect zero rows.
 --    If this returns anything, the Gold+ join silently drops employees.
 SELECT e.department_name, count(*) AS orphaned_employees
-FROM main.gold_demo.gold_employee e
-LEFT JOIN main.gold_demo.gold_department d
+FROM jpmc_cib_demo.gold_demo.gold_employee e
+LEFT JOIN jpmc_cib_demo.gold_demo.gold_department d
     ON e.department_name = d.department_name
 WHERE d.department_name IS NULL
 GROUP BY e.department_name;
 
 -- 4. Partition layout. Confirms the join key is NOT a partition column --
 --    the premise of the entire pattern. Look at the partitionColumns field.
-DESCRIBE DETAIL main.gold_demo.gold_employee;
-DESCRIBE DETAIL main.gold_demo.gold_department;
+DESCRIBE DETAIL jpmc_cib_demo.gold_demo.gold_employee;
+DESCRIBE DETAIL jpmc_cib_demo.gold_demo.gold_department;
 
 -- 5. Partition count and rows per partition on the large side.
 --    Watch for over-partitioning: if rows-per-partition is in the tens,
@@ -45,7 +45,7 @@ SELECT
     max(rows)                                             AS max_rows
 FROM (
     SELECT department_number, employee_id_bucket, count(*) AS rows
-    FROM main.gold_demo.gold_employee
+    FROM jpmc_cib_demo.gold_demo.gold_employee
     GROUP BY department_number, employee_id_bucket
 );
 
@@ -56,8 +56,8 @@ SELECT
     department_number,
     department_name,
     count(*)                                                        AS employees,
-    round(100.0 * count(*) / (SELECT count(*) FROM main.gold_demo.gold_employee), 2)    AS pct_of_total
-FROM main.gold_demo.gold_employee
+    round(100.0 * count(*) / (SELECT count(*) FROM jpmc_cib_demo.gold_demo.gold_employee), 2)    AS pct_of_total
+FROM jpmc_cib_demo.gold_demo.gold_employee
 GROUP BY department_number, department_name
 ORDER BY employees DESC
 LIMIT 10;
@@ -68,7 +68,7 @@ SELECT
     min(updated_at) AS earliest,
     max(updated_at) AS latest,
     count(DISTINCT date(updated_at)) AS distinct_days
-FROM main.gold_demo.gold_employee;
+FROM jpmc_cib_demo.gold_demo.gold_employee;
 
 -- 8. The join plan. Confirm a BroadcastHashJoin on the small side, and that
 --    no partition pruning is claimed on department_name. This is the single
@@ -76,19 +76,19 @@ FROM main.gold_demo.gold_employee;
 --    asserting it.
 EXPLAIN FORMATTED
 SELECT e.employee_id, e.department_name, d.cost_center, d.division
-FROM main.gold_demo.gold_employee e
-JOIN main.gold_demo.gold_department d
+FROM jpmc_cib_demo.gold_demo.gold_employee e
+JOIN jpmc_cib_demo.gold_demo.gold_department d
     ON e.department_name = d.department_name;
 
 -- 9. After the dbt model has been built: confirm the clustering keys landed.
 --    Look for clusteringColumns = [department_name] and note that
 --    partitionColumns is empty -- the Gold+ table is laid out for reads,
 --    not for ingest.
--- DESCRIBE DETAIL main.gold_demo.gold_plus_employee_department;
+-- DESCRIBE DETAIL jpmc_cib_demo.gold_demo.gold_plus_employee_department;
 
 -- 10. After the dbt model has been built: row count must equal
 --     gold_employee exactly. A many-to-one join must neither fan out
 --     nor drop rows, and this is the one-line proof.
 -- SELECT
---     (SELECT count(*) FROM main.gold_demo.gold_employee)  AS employee_rows,
---     (SELECT count(*) FROM main.gold_demo.gold_plus_employee_department) AS gold_plus_rows;
+--     (SELECT count(*) FROM jpmc_cib_demo.gold_demo.gold_employee)  AS employee_rows,
+--     (SELECT count(*) FROM jpmc_cib_demo.gold_demo.gold_plus_employee_department) AS gold_plus_rows;

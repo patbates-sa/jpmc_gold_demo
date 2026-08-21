@@ -1,0 +1,18 @@
+# macOS
+.DS_Store
+
+# Editor
+.vscode/
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# dbt -- never commit credentials or build artifacts
+profiles.yml
+target/
+dbt_packages/
+logs/
+.user.yml

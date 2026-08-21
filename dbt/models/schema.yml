@@ -1,0 +1,26 @@
+version: 2
+
+models:
+  - name: gold_plus_employee_department
+    description: >
+      Gold+ table joining employee to department on department_name and clustered
+      on the consumer query predicate. Demonstrates that ingest-optimized source
+      partitioning is transparent to a join on a non-partitioned key.
+    columns:
+      - name: employee_id
+        tests: [unique, not_null]
+      - name: department_name
+        tests: [not_null]
+      - name: cost_center
+        description: From the small side. Not null proves no employee was dropped by the join.
+        tests: [not_null]
+
+  - name: gold_plus_employee_department_incremental
+    description: >
+      Incremental merge variant. Correct across department transfers, which restate
+      the Gold+ row rather than duplicating it.
+    columns:
+      - name: employee_id
+        tests: [unique, not_null]
+      - name: cost_center
+        tests: [not_null]
